@@ -2,6 +2,7 @@ using JetBrains.Annotations;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.ConstrainedExecution;
 using Unity.Netcode;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -46,6 +47,7 @@ public class Player : Controller
         }
 
         playerCamera.transform.position = new Vector3(transform.position.x, transform.position.y, -10);
+        controllingManager.endOfUpdate();
     }
 
     private void Update()
@@ -109,6 +111,8 @@ public class Player : Controller
         public abstract void interactionPressed();
 
         public abstract void repairPressed();
+
+        public abstract void endOfUpdate();
     }
 
     class standardController : controllerType
@@ -149,42 +153,35 @@ public class Player : Controller
         {
             controlling.repair();
         }
+
+        void controllerType.endOfUpdate()
+        {
+
+        }
     }
 
     class steeringController : controllerType 
     {
-        Actor actorControlling;
+        private List<PlayersManager.playerServerSideActionShip.shipAction> shipActions;
+        private Actor actorControlling;
 
         public steeringController(Actor actorToControl)
         {
             actorControlling = actorToControl;
+            shipActions = new List<PlayersManager.playerServerSideActionShip.shipAction>();
         }
 
+        //calls to server rpcs as we need data stored server side
         void controllerType.leftPressed()
         {
-            leftPressedServerRpc(actorControlling.getActorId());
-        }
-
-        //unlike the standard controller, these are server rpcs as we need data stored server side
-        [ServerRpc]
-        public void leftPressedServerRpc(int actorId)
-        {
+            shipActions.Add(PlayersManager.playerServerSideActionShip.shipAction.rotateLeft);
             print("test");
-            SteeringComponent steeringOn = getActorSteeringComponenet(actorId);
-            steeringOn.rotateLeft();
         }
 
         void controllerType.rightPressed()
         {
-            rightPressedServerRpc(actorControlling.getActorId());
-        }
-
-        [ServerRpc]
-        public void rightPressedServerRpc(int actorId)
-        {
-            SteeringComponent steeringOn = getActorSteeringComponenet(actorId);
-            steeringOn.rotateRight();
-        }
+            shipActions.Add(PlayersManager.playerServerSideActionShip.shipAction.rotateRight);
+        }     
 
         void controllerType.downPressed()
         {
@@ -193,38 +190,23 @@ public class Player : Controller
 
         void controllerType.upPressed()
         {
-            upPressedServerRpc(actorControlling.getActorId());
-        }
-
-        [ServerRpc]
-        public void upPressedServerRpc(int actorId)
-        {
-            SteeringComponent steeringOn = getActorSteeringComponenet(actorId);
-            steeringOn.thrust();
+            shipActions.Add(PlayersManager.playerServerSideActionShip.shipAction.thrust);
         }
 
         void controllerType.interactionPressed()
         {
-            interactionPressedServerRpc(actorControlling.getActorId());
-        }
-
-        [ServerRpc]
-        public void interactionPressedServerRpc(int actorId)
-        {
-            SteeringComponent steeringOn = getActorSteeringComponenet(actorId);
-            steeringOn.dismountFromSteeringServerRpc(actorId);
+            shipActions.Add(PlayersManager.playerServerSideActionShip.shipAction.interactionPressed);
         }
 
         void controllerType.repairPressed()
         {
             return;
-        }
+        }     
 
-        private SteeringComponent getActorSteeringComponenet(int actorId)
+        void controllerType.endOfUpdate()
         {
-            Actor actorControlling = ActorsManager.instance.getActor(actorId);
-            SteeringComponent steeringOn = (SteeringComponent)actorControlling.whatAreWeMountedOn();
-            return steeringOn;
+            PlayersManager.instance.registerAction(shipActions.ToArray());
+            shipActions.Clear();
         }
     }
 }

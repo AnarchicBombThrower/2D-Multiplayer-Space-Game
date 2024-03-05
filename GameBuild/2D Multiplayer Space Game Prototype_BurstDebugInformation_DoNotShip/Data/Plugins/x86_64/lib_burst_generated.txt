@@ -1,4 +1,4 @@
-Library: C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
+Library: C:\Users\FPWTE\Documents\2D Multiplayer Space Game\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
 --platform=Windows
 --backend=burst-llvm-15
 --target=X64_SSE2
@@ -70,11 +70,11 @@ Library: C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Temp\Burst
 --assembly-defines=mscorlib;
 --linker-options=PdbAltPath="2D Multiplayer Space Game Prototype_Data/Plugins/x86_64/lib_burst_generated.pdb"
 --generate-link-xml=Temp\burst.link.xml
---temp-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Temp\Burst
+--temp-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game\Temp\Burst
 --debug=Full
 --key-folder=C:/Users/FPWTE/OneDrive/Documents/2022.3.13f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
---decode-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Library\Burst
---output=C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
+--decode-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game\Library\Burst
+--output=C:\Users\FPWTE\Documents\2D Multiplayer Space Game\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
 
 --method=Unity.Burst.BurstCompiler+BurstCompilerHelper, Unity.Burst, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::IsBurstEnabled()--8c2be93e18276203cbd918daa2748a10
@@ -241,11 +241,11 @@ Library: C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Temp\Burst
 --assembly-defines=mscorlib;
 --linker-options=PdbAltPath="2D Multiplayer Space Game Prototype_Data/Plugins/x86_64/lib_burst_generated.pdb"
 --generate-link-xml=Temp\burst.link.xml
---temp-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Temp\Burst
+--temp-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game\Temp\Burst
 --debug=Full
 --key-folder=C:/Users/FPWTE/OneDrive/Documents/2022.3.13f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
---decode-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Library\Burst
---output=C:\Users\FPWTE\Documents\2D Multiplayer Space Game Prototype\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
+--decode-folder=C:\Users\FPWTE\Documents\2D Multiplayer Space Game\Library\Burst
+--output=C:\Users\FPWTE\Documents\2D Multiplayer Space Game\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
 
 --method=Unity.Burst.BurstCompiler+BurstCompilerHelper, Unity.Burst, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::IsBurstEnabled()--8c2be93e18276203cbd918daa2748a10

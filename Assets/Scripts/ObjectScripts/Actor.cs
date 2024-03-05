@@ -34,11 +34,13 @@ public class Actor : NetworkBehaviour
     {
         repairTimer = Mathf.Max(0, repairTimer - Time.deltaTime);
 
+        GetComponent<Collider2D>().enabled = !locked; //temp
+
         if (!locked)
         {
             return;
         }
-
+  
         transform.localPosition = localPositionToKeep;
     }
 

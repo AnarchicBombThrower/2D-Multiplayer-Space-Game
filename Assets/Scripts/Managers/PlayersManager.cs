@@ -9,6 +9,7 @@ public class PlayersManager : NetworkBehaviour
     private static Vector2[] playerStartingPositions = new Vector2[4] { new Vector2(11,7), new Vector2(12,7), new Vector2(11,6), new Vector2(12,6) };
     private static List<ulong> clientsReady = new List<ulong>();
     private static List<Player> playersInGame = new List<Player>();
+    private Dictionary<Player, List<playerServerSideActionShip>> playerActions = new Dictionary<Player, List<playerServerSideActionShip>>();
     const int playerLimit = 4;
 
     public override void OnNetworkSpawn()
@@ -24,6 +25,26 @@ public class PlayersManager : NetworkBehaviour
         if (IsHost)
         {
             NetworkManager.OnClientConnectedCallback += playerJoinedServerRpc;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (IsHost == false)
+        {
+            return;
+        }
+
+        foreach (Player player in playersInGame)
+        {
+            List<playerServerSideActionShip> actions = playerActions[player];
+
+            foreach (playerServerSideActionShip action in actions)
+            {
+                //for each player we execute all the actions we have been sent this is so they are executed at a constant rate (the fixed update of the server)
+                print("yeah");
+                action.execute();
+            }
         }
     }
 
@@ -48,8 +69,10 @@ public class PlayersManager : NetworkBehaviour
 
             void spawnActorAsPlayer(Actor player){
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientsReady[i]);
-            }
-            
+                Player playerComponent = player.GetComponent<Player>();
+                playerActions.Add(playerComponent, new List<playerServerSideActionShip>());
+                playersInGame.Add(playerComponent);
+            } 
         }
     }
 
@@ -137,8 +160,68 @@ public class PlayersManager : NetworkBehaviour
             case Player.controllerTypes.steering:
                 player.setToSteeringController();
                 return;
+        }      
+    }
+
+    public interface playerServerSideAction
+    {
+        public abstract void execute();
+    }
+
+    public class playerServerSideActionShip : playerServerSideAction
+    {
+        public enum shipAction { rotateLeft, rotateRight, thrust, interactionPressed }
+        private shipAction ourAction;
+        private SteeringComponent steeringComponentToActOn;
+        private Player playerActingOn;
+
+        public playerServerSideActionShip(shipAction actionType, Player playerActingOn)
+        {
+            ourAction = actionType;
+            steeringComponentToActOn = getActorSteeringComponent(playerActingOn.getActor());
+        } 
+
+        public void execute()
+        {
+            switch (ourAction)
+            {
+                case shipAction.rotateLeft:
+                    steeringComponentToActOn.rotateLeft();
+                    return;
+                case shipAction.rotateRight:
+                    steeringComponentToActOn.rotateRight();
+                    return;
+                case shipAction.thrust:
+                    steeringComponentToActOn.thrust();
+                    return;
+                case shipAction.interactionPressed:
+                    steeringComponentToActOn.dismountFromSteeringServerRpc(playerActingOn.getActor().getActorId());
+                    return;
+            }
         }
-        
+
+        private SteeringComponent getActorSteeringComponent(Actor actor)
+        {
+            SteeringComponent steeringOn = (SteeringComponent)actor.whatAreWeMountedOn();
+            return steeringOn;
+        }
+    }
+
+    public void registerAction(playerServerSideActionShip.shipAction[] toRegister)
+    {
+        registerActionWithServerRpc(toRegister, NetworkManager.Singleton.LocalClientId);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void registerActionWithServerRpc(playerServerSideActionShip.shipAction[] toRegister, ulong playerClientId)
+    {
+        Player playerToRegisterAction = getPlayerFromClientId(playerClientId);
+        playerActions[playerToRegisterAction].Clear();
+
+        foreach (playerServerSideActionShip.shipAction action in toRegister)
+        {
+            playerActions[playerToRegisterAction].Add(new playerServerSideActionShip(action, playerToRegisterAction));
+        }
     }
 
     private ClientRpcParams getClientRpcParams(ulong id)

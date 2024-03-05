@@ -13,6 +13,11 @@ public abstract class Controller : NetworkBehaviour
         onStart();
     }
 
+    public Actor getActor()
+    {
+        return ourActor;
+    }
+
     protected abstract void onStart();
 
     public abstract void unmounted();
