@@ -30,11 +30,9 @@ public class SteeringComponent : ShipMountableComponent
         ourShip.rotateShip(true);
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    public void dismountFromSteeringServerRpc(int actorId)
+    public void dismountFromSteering(Actor actor)
     {
-        Actor actor = ActorsManager.instance.getActor(actorId);
         unmount(actor);
-        actor.unmountFromSteeringServerRpc();
+        actor.unmountFromSteering();
     }
 }

@@ -11,6 +11,7 @@ public class Actor : NetworkBehaviour
     //helper components
     private Controller ourController;
     private Rigidbody2D ourRigidbody;
+    private Collider2D ourCollider;
     //ship interaction
     private List<ShipInteractableComponent> interactableComponentsWeCanInteractWith = new List<ShipInteractableComponent>();
     private List<Ship> shipsWeSee = new List<Ship>();
@@ -28,13 +29,12 @@ public class Actor : NetworkBehaviour
     {
         ourController = GetComponent<Controller>();
         ourRigidbody = GetComponent<Rigidbody2D>();
+        ourCollider = GetComponent<Collider2D>();
     }
 
     void Update()
     {
         repairTimer = Mathf.Max(0, repairTimer - Time.deltaTime);
-
-        GetComponent<Collider2D>().enabled = !locked; //temp
 
         if (!locked)
         {
@@ -114,6 +114,8 @@ public class Actor : NetworkBehaviour
             return false;
         }
 
+        print("test");
+
         interactableComponentsWeCanInteractWith[0].interactWithUsServerRpc(getActorId());
         return true;
     }
@@ -139,8 +141,7 @@ public class Actor : NetworkBehaviour
         return mountedOn;
     }
 
-    [ServerRpc]
-    public void unmountFromSteeringServerRpc()
+    public void unmountFromSteering()
     {
         unlockPosition();
         ourController.unmounted();
@@ -171,11 +172,12 @@ public class Actor : NetworkBehaviour
     {
         localPositionToKeep = localPositionAt;
         locked = true;
+        ourCollider.enabled = false;
     }
 
     public void unlockPosition()
     {
-        //ourRigidbody.constraints = RigidbodyConstraints2D.FreezeRotation;
         locked = false;
+        ourCollider.enabled = true;
     } 
 }

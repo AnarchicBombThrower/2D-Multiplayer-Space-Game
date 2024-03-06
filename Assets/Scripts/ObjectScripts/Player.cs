@@ -46,15 +46,7 @@ public class Player : Controller
             controllingManager.downPressed();
         }
 
-        playerCamera.transform.position = new Vector3(transform.position.x, transform.position.y, -10);
-        controllingManager.endOfUpdate();
-    }
-
-    private void Update()
-    {
-        if (IsOwner == false) { return; } //if we do not own this then we cannot control
-
-        if (Input.GetKeyDown("f"))
+        if(Input.GetKey("f"))
         {
             controllingManager.interactionPressed();
         }
@@ -63,6 +55,9 @@ public class Player : Controller
         {
             controllingManager.repairPressed();
         }
+
+        playerCamera.transform.position = new Vector3(transform.position.x, transform.position.y, -10);
+        controllingManager.endOfUpdate();
     }
 
     public override void unmounted()
@@ -175,7 +170,6 @@ public class Player : Controller
         void controllerType.leftPressed()
         {
             shipActions.Add(PlayersManager.playerServerSideActionShip.shipAction.rotateLeft);
-            print("test");
         }
 
         void controllerType.rightPressed()

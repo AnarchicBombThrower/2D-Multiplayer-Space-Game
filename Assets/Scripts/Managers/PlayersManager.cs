@@ -42,7 +42,6 @@ public class PlayersManager : NetworkBehaviour
             foreach (playerServerSideActionShip action in actions)
             {
                 //for each player we execute all the actions we have been sent this is so they are executed at a constant rate (the fixed update of the server)
-                print("yeah");
                 action.execute();
             }
         }
@@ -175,10 +174,11 @@ public class PlayersManager : NetworkBehaviour
         private SteeringComponent steeringComponentToActOn;
         private Player playerActingOn;
 
-        public playerServerSideActionShip(shipAction actionType, Player playerActingOn)
+        public playerServerSideActionShip(shipAction actionType, Player player)
         {
             ourAction = actionType;
-            steeringComponentToActOn = getActorSteeringComponent(playerActingOn.getActor());
+            steeringComponentToActOn = getActorSteeringComponent(player.getActor());
+            playerActingOn = player;
         } 
 
         public void execute()
@@ -195,7 +195,7 @@ public class PlayersManager : NetworkBehaviour
                     steeringComponentToActOn.thrust();
                     return;
                 case shipAction.interactionPressed:
-                    steeringComponentToActOn.dismountFromSteeringServerRpc(playerActingOn.getActor().getActorId());
+                    steeringComponentToActOn.dismountFromSteering(playerActingOn.getActor());
                     return;
             }
         }
