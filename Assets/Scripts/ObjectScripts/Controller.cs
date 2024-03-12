@@ -24,6 +24,8 @@ public abstract class Controller : NetworkBehaviour
 
     public abstract void mountedOnSteering(SteeringComponent mountedOn);
 
+    public abstract void mountedOnGun(GunComponent mountedOn);
+
     public abstract void sightOfShip(Ship nowSeen);
 
     public abstract void noSightOfShip(Ship nowUnseen);

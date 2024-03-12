@@ -21,6 +21,7 @@ public class Actor : NetworkBehaviour
     private Vector2 localPositionToKeep;
     private bool locked = false;
     private float repairTimer = 0;
+    private int health;
    //constants 
     const float force = 100;
     const int repairAmount = 20;
@@ -30,6 +31,7 @@ public class Actor : NetworkBehaviour
         ourController = GetComponent<Controller>();
         ourRigidbody = GetComponent<Rigidbody2D>();
         ourCollider = GetComponent<Collider2D>();
+        health = 100;
     }
 
     void Update()
@@ -74,6 +76,7 @@ public class Actor : NetworkBehaviour
         }
 
         shipOn = getOn;
+        shipOn.actorOnShip(this);
         addShipToSight(shipOn);
         transform.position = whereWeBoardTo;
         transform.SetParent(getOn.transform);
@@ -107,14 +110,17 @@ public class Actor : NetworkBehaviour
         ourRigidbody.AddForce(new Vector2(0, 1) * Time.deltaTime * force);
     }
 
+    public void addForceDown()
+    {
+        ourRigidbody.AddForce(new Vector2(0, -1) * Time.deltaTime * force);
+    }
+
     public bool interact()
     {
         if (interactableComponentsWeCanInteractWith.Count == 0)
         {
             return false;
         }
-
-        print("test");
 
         interactableComponentsWeCanInteractWith[0].interactWithUsServerRpc(getActorId());
         return true;
@@ -131,9 +137,20 @@ public class Actor : NetworkBehaviour
         return true;
     }
 
-    public void addForceDown()
+    public void dealDamage(int damage)
     {
-        ourRigidbody.AddForce(new Vector2(0, -1) * Time.deltaTime * force);
+        health = Math.Max(0, health - damage); //health can only drop to zero
+
+        if (damage == 0)
+        {
+            die();
+        }
+    }
+
+    private void die()
+    {
+        throw new NotImplementedException();
+        //decision to be made here what should we do when the player dies? for now nothing happens but something to be designed here
     }
 
     public ShipMountableComponent whatAreWeMountedOn()
@@ -141,7 +158,7 @@ public class Actor : NetworkBehaviour
         return mountedOn;
     }
 
-    public void unmountFromSteering()
+    public void unmountFromMountedComponent()
     {
         unlockPosition();
         ourController.unmounted();
@@ -151,8 +168,19 @@ public class Actor : NetworkBehaviour
     //interactable component interaction
     public void mountOntoSteering(SteeringComponent steeringMountedOn, Vector2 offset)
     {
-        mountedOn = steeringMountedOn;
+        mountOntoComponent(steeringMountedOn, offset);
         ourController.mountedOnSteering(steeringMountedOn);
+    }
+
+    public void mountOntoGun(GunComponent gunMountedOn, Vector2 offset)
+    {
+        mountOntoComponent(gunMountedOn, offset);
+        ourController.mountedOnGun(gunMountedOn);
+    }
+
+    private void mountOntoComponent(ShipMountableComponent mountOn, Vector2 offset)
+    {
+        mountedOn = mountOn;
         transform.position = mountedOn.transform.position + new Vector3(offset.x, offset.y, 0);
         localPositionToKeep = transform.localPosition;
         lockPosition(localPositionToKeep);

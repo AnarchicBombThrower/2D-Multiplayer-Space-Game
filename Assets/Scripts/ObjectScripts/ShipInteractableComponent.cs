@@ -102,19 +102,31 @@ public abstract class ShipInteractableComponent : NetworkBehaviour
     private void setHealth(int setTo)
     {
         health = setTo;
-        healthSet(this,health);
+
+        if (healthSet != null)
+        {
+            healthSet(this, health);
+        }
     }
 
     private void breakComponent()
     {
         broken = true;
-        functioningStateSetCallback(this, broken);
+
+        if (functioningStateSetCallback != null)
+        {
+            functioningStateSetCallback(this, broken);
+        }  
     }
 
     private void repairComponent()
     {
         broken = false;
-        functioningStateSetCallback(this,broken);
+
+        if (functioningStateSetCallback != null)
+        {
+            functioningStateSetCallback(this, broken);
+        }   
     }
 
     protected bool isComponentFunctioning()

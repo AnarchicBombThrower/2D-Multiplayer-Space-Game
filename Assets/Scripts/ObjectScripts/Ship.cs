@@ -9,6 +9,7 @@ public class Ship : NetworkBehaviour
 {
     public Vector2 defaultBoardPosition;
     private ShipInteractableComponent[] shipInteractableComponents;
+    private List<Actor> actorsOnShip;
     private Rigidbody2D ourRigidbody;
     private float thrust = 500;
     private float rotateSpeed = 45;
@@ -18,11 +19,17 @@ public class Ship : NetworkBehaviour
     {
         ourRigidbody = GetComponent<Rigidbody2D>();
         shipInteractableComponents = GetComponentsInChildren<ShipInteractableComponent>();
+        actorsOnShip = new List<Actor>();
     }
 
     public ShipInteractableComponent[] getShipComponents()
     {
         return shipInteractableComponents;
+    }
+
+    public List<Actor> getActorsOnShip()
+    {
+        return actorsOnShip;
     }
 
     public void subscribeToAllHealthSetEvents(componentHealthSet toSubscribe)
@@ -31,6 +38,22 @@ public class Ship : NetworkBehaviour
         {
             component.subscribeToHealthSetEvent(toSubscribe);
         }
+    }
+
+    public void actorOnShip(Actor actor)
+    {
+        actorsOnShip.Add(actor);
+    }
+
+    public void actorLeftShip(Actor actor)
+    {
+        if (actorsOnShip.Contains(actor) == false)
+        {
+            Debug.LogError(actor + " trying to leave ship we are not on!");
+            return;
+        }
+
+        actorsOnShip.Remove(actor);
     }
 
     public void rotateShip(bool right)

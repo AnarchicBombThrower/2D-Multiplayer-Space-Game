@@ -6,13 +6,14 @@ using UnityEngine;
 public class SteeringComponent : ShipMountableComponent
 {
     public Ship ourShip;
+    const float Y_OFFSET = 0.55f;
 
     [ServerRpc(RequireOwnership = false)]
     public override void interactWithUsServerRpc(int actorId)
     {
         Actor actor = ActorsManager.instance.getActor(actorId);
         mountOntoUs(actor);
-        actor.mountOntoSteering(this, new Vector2(0, 0.55f));
+        actor.mountOntoSteering(this, new Vector2(0, Y_OFFSET));
     }
 
     public void thrust()
@@ -33,6 +34,6 @@ public class SteeringComponent : ShipMountableComponent
     public void dismountFromSteering(Actor actor)
     {
         unmount(actor);
-        actor.unmountFromSteering();
+        actor.unmountFromMountedComponent();
     }
 }
