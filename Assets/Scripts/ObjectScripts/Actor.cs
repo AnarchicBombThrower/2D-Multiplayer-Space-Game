@@ -174,12 +174,14 @@ public class Actor : NetworkBehaviour
 
     public void mountOntoGun(GunComponent gunMountedOn, Vector2 offset)
     {
+        print("test");
         mountOntoComponent(gunMountedOn, offset);
         ourController.mountedOnGun(gunMountedOn);
     }
 
     private void mountOntoComponent(ShipMountableComponent mountOn, Vector2 offset)
     {
+        print("test");
         mountedOn = mountOn;
         transform.position = mountedOn.transform.position + new Vector3(offset.x, offset.y, 0);
         localPositionToKeep = transform.localPosition;

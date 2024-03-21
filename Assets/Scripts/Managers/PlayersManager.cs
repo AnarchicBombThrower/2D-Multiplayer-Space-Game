@@ -116,15 +116,11 @@ public class PlayersManager : NetworkBehaviour
         playerReadyServerRpc(NetworkManager.Singleton.LocalClientId);
     }
 
-    public void setPlayerControllerTo(Player player, Player.controllerTypes typeToSetTo)
+    public void setPlayerControllerToStandard(Player player)
     {
-        if (player.IsLocalPlayer) //are we the local client? if so no client rpc needed
+        if (areWeNotSendingBetweenNonhosts(player)) //if we are the host or the local player then we can do it...
         {
-            setPlayerControllerToStandardLocalCall(player, typeToSetTo);
-        }
-        else if (IsHost) //if not and we are the host, call a client rpc
-        {
-            setPlayerControllerToStandardClientRpc(typeToSetTo, getClientRpcParams(player.OwnerClientId));
+            setPlayerControllerToStandardClientRpc(getClientRpcParams(player.OwnerClientId));
         }
         else //if we are a client calling another client throw an error, this should not happen!
         {
@@ -132,12 +128,62 @@ public class PlayersManager : NetworkBehaviour
         }
     }
 
+    public void setPlayerControllerToSteering(Player player, SteeringComponent component)
+    {
+        if (areWeNotSendingBetweenNonhosts(player))
+        {
+            setPlayerControllerToSteeringClientRpc(component, getClientRpcParams(player.OwnerClientId));
+        }
+        else
+        {
+            Debug.LogError("Client cannot change another clients controller type!");
+        }
+    }
+
+    public void setPlayerControllerToGun(Player player, GunComponent component)
+    {
+        if (areWeNotSendingBetweenNonhosts(player))
+        {
+            setPlayerControllerToGunClientRpc(component, getClientRpcParams(player.OwnerClientId));
+        }
+        else
+        {
+            Debug.LogError("Client cannot change another clients controller type!");
+        }
+    }
+
     [ClientRpc]
-    private void setPlayerControllerToStandardClientRpc(Player.controllerTypes typeToSetTo, ClientRpcParams clientRpcParams = default)
+    private void setPlayerControllerToStandardClientRpc(ClientRpcParams clientRpcParams = default)
     {
         Player playerToSet = getLocalClientPlayer();
-        setPlayerControllerToStandardLocalCall(playerToSet, typeToSetTo);
+        playerToSet.setToStandardController();
     }
+
+    [ClientRpc]
+    private void setPlayerControllerToSteeringClientRpc(NetworkBehaviourReference component, ClientRpcParams clientRpcParams = default)
+    {
+        Player playerToSet = getLocalClientPlayer();
+        SteeringComponent steeringComponent = null;
+        if (component.TryGet(out steeringComponent) == false) { Debug.LogError("Component not of correct type for steering controller! " + component.ToString()); }
+
+        playerToSet.setToSteeringController(steeringComponent);
+    }
+
+    [ClientRpc]
+    private void setPlayerControllerToGunClientRpc(NetworkBehaviourReference component, ClientRpcParams clientRpcParams = default)
+    {
+        Player playerToSet = getLocalClientPlayer();
+        GunComponent gunComponent = null;
+        if (component.TryGet(out gunComponent) == false) { Debug.LogError("Component not of correct type for gun controller! " + component.ToString()); }
+
+        playerToSet.setToGunController(gunComponent);
+    }
+
+    public bool areWeNotSendingBetweenNonhosts(Player player)
+    {
+        return IsHost || player.IsLocalPlayer;
+    }
+
 
     public void showShipToPlayer(Ship ship, Player playerShow)
     {
@@ -147,19 +193,6 @@ public class PlayersManager : NetworkBehaviour
     public void unshowShipToPlayer(Ship ship, Player playerUnShow)
     {
         ship.unseenByPlayerClientRpc(getClientRpcParams(playerUnShow.OwnerClientId));
-    }
-
-    private void setPlayerControllerToStandardLocalCall(Player player, Player.controllerTypes typeToSetTo)
-    {
-        switch (typeToSetTo)
-        {
-            case Player.controllerTypes.standard:
-                player.setToStandardController();
-                return;
-            case Player.controllerTypes.steering:
-                player.setToSteeringController();
-                return;
-        }      
     }
 
     public interface playerServerSideAction
@@ -227,10 +260,13 @@ public class PlayersManager : NetworkBehaviour
             switch (ourAction)
             {
                 case gunAction.rotateLeft:
+                    gunActingOn.rotateGunLeft();
                     return;
                 case gunAction.rotateRight:
+                    gunActingOn.rotateGunRight();
                     return;
                 case gunAction.shoot:
+                    gunActingOn.shootMissile();
                     return;
             }
         }

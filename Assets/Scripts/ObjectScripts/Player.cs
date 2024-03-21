@@ -10,7 +10,7 @@ using static PlayersManager.playerServerSideActionShip;
 
 public class Player : Controller
 {
-    public enum controllerTypes { standard, steering }
+    public enum controllerTypes { standard, steering, gun }
     public Camera playerCamera;
     private controllerType controllingManager = null;
 
@@ -20,7 +20,7 @@ public class Player : Controller
 
         playerCamera = GameObject.Find("MainCamera").GetComponent<Camera>();
         Debug.LogError(OwnerClientId);
-        PlayersManager.instance.setPlayerControllerTo(this, controllerTypes.standard);
+        PlayersManager.instance.setPlayerControllerToStandard(this);
     }
 
     private void FixedUpdate() //Movement in FIXED update because we are making use of the unity physics system.
@@ -64,17 +64,17 @@ public class Player : Controller
     public override void unmounted()
     {
         //setToStandardControllerClientRpc(getOurClientRpcParams());
-        PlayersManager.instance.setPlayerControllerTo(this, controllerTypes.standard);
+        PlayersManager.instance.setPlayerControllerToStandard(this);
     }
 
     public override void mountedOnSteering(SteeringComponent mountedOn)
     {
-        PlayersManager.instance.setPlayerControllerTo(this, controllerTypes.steering);
+        PlayersManager.instance.setPlayerControllerToSteering(this, mountedOn);
     }
 
     public override void mountedOnGun(GunComponent mountedOn)
     {
-        
+        PlayersManager.instance.setPlayerControllerToGun(this, mountedOn);
     }
 
     public override void sightOfShip(Ship nowSeen)
@@ -93,11 +93,16 @@ public class Player : Controller
         controllingManager = new standardController(ourActor);
     }
 
-    public void setToSteeringController()
+    public void setToSteeringController(SteeringComponent steering)
     {
         if (IsOwner == false) { return; }
-        print("test?");
-        controllingManager = new steeringController(ourActor);
+        controllingManager = new steeringController(steering);
+    }
+
+    public void setToGunController(GunComponent gun)
+    {
+        if (IsOwner == false) { return; }
+        controllingManager = new gunController(ourActor);
     }
 
     interface controllerType
@@ -165,11 +170,11 @@ public class Player : Controller
     class steeringController : controllerType 
     {
         private List<uint> shipActions;
-        private Actor actorControlling;
+        private SteeringComponent ourSteeringComponent;
 
-        public steeringController(Actor actorToControl)
+        public steeringController(SteeringComponent steering)
         {
-            actorControlling = actorToControl;
+            ourSteeringComponent = steering;
             shipActions = new List<uint>();
         }
 
@@ -214,6 +219,13 @@ public class Player : Controller
     class gunController : controllerType
     {
         private List<uint> shipActions;
+        private Actor actorControlling;
+
+        public gunController(Actor actorToControl)
+        {
+            actorControlling = actorToControl;
+            shipActions = new List<uint>();
+        }
 
         void controllerType.leftPressed()
         {

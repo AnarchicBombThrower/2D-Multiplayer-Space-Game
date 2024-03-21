@@ -1,47 +1,35 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
-using Unity.Mathematics;
-using Unity.VisualScripting;
+using Unity.Netcode;
 using UnityEngine;
 
-public class Missile : MonoBehaviour
+public class Missile : NetworkBehaviour
 {
     private Vector2 target;
+    [SerializeField]
     private float speed;
+    [SerializeField]
     private float damage;
+    [SerializeField]
     private float damageFalloffPerDistance;
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
+    const float ROTATION_OFFSET = 90;
 
     // Update is called once per frame
     void Update()
     {
-        transform.position = Vector2.MoveTowards(transform.position, target, speed * Time.deltaTime);
-
-        if (Input.GetKeyDown("j"))
+        if (IsHost == false)
         {
-            testFunction();
+            return;
         }
+
+        transform.position = Vector2.MoveTowards(transform.position, target, speed * Time.deltaTime);
     }
 
-    public void missileGoto(Vector2 gotoPosition)
+    public void missileGoto(Vector2 gotoPosition, float angleAt)
     {
         target = gotoPosition;
-    }
-
-    private void testFunction()
-    {
-        damage = 50;
-        damageFalloffPerDistance = 10;
-        speed = 10;
-        transform.position = new Vector2(10, 10);
-        missileGoto(Vector2.zero);
+        transform.rotation = Quaternion.Euler(0, 0, angleAt + ROTATION_OFFSET);
     }
 
     private void OnTriggerEnter2D(Collider2D collision)

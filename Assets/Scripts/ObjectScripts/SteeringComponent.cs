@@ -12,6 +12,7 @@ public class SteeringComponent : ShipMountableComponent
     public override void interactWithUsServerRpc(int actorId)
     {
         Actor actor = ActorsManager.instance.getActor(actorId);
+        return;
         mountOntoUs(actor);
         actor.mountOntoSteering(this, new Vector2(0, Y_OFFSET));
     }
