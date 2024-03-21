@@ -110,6 +110,12 @@ public class PlayersManager : NetworkBehaviour
         return NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<Player>();
     }
 
+    public float getDistanceToLocalPlayer(Vector2 pos)
+    {
+        Vector2 playerPos = getLocalClientPlayer().transform.position;
+        return Vector2.Distance(playerPos, pos);
+    }
+
     //this is for calling it LOCALLY! then we send an rpc to the server
     public void localClientReadyUp()
     {
@@ -184,7 +190,6 @@ public class PlayersManager : NetworkBehaviour
         return IsHost || player.IsLocalPlayer;
     }
 
-
     public void showShipToPlayer(Ship ship, Player playerShow)
     {
         ship.seenByPlayerClientRpc(getClientRpcParams(playerShow.OwnerClientId));
@@ -193,6 +198,13 @@ public class PlayersManager : NetworkBehaviour
     public void unshowShipToPlayer(Ship ship, Player playerUnShow)
     {
         ship.unseenByPlayerClientRpc(getClientRpcParams(playerUnShow.OwnerClientId));
+    }
+
+    //TODO: later introduce parameters to limit certain pings to certain players
+    [ClientRpc]
+    public void placePingAtClientRpc(Vector2 position)
+    {
+        PlayerPingUiManager.instance.createPingLocally(position);
     }
 
     public interface playerServerSideAction

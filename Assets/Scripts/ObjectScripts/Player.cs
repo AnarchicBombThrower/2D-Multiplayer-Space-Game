@@ -23,7 +23,7 @@ public class Player : Controller
         PlayersManager.instance.setPlayerControllerToStandard(this);
     }
 
-    private void FixedUpdate() //Movement in FIXED update because we are making use of the unity physics system.
+    private void FixedUpdate() //Movement in FIXED update because we are making use of the unity physics system. TODO: MAKE THIS NORMAL UPDATE AND HANDLE EXECUTING IT IN PLAYER MANAGER OR SOMETHING
     {
         if (IsOwner == false) { return; } //if we do not own this then we cannot control      
 
@@ -55,6 +55,11 @@ public class Player : Controller
         if (Input.GetKey("r"))
         {
             controllingManager.repairPressed();
+        }
+
+        if (Input.GetMouseButton(1))
+        {
+            PlayersManager.instance.placePingAtClientRpc(playerCamera.ScreenToWorldPoint(Input.mousePosition));
         }
 
         playerCamera.transform.position = new Vector3(transform.position.x, transform.position.y, -10);

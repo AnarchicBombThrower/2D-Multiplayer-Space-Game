@@ -2095,6 +2095,7 @@ GameObject:
   - component: {fileID: 1742392513}
   - component: {fileID: 1742392515}
   - component: {fileID: 1742392516}
+  - component: {fileID: 1742392517}
   m_Layer: 0
   m_Name: UiManager
   m_TagString: Untagged
@@ -2155,6 +2156,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 33e6e62871caa2547835672c9455b7a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1742392517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1742392512}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d93de130f2b13645a0bccdd88c01baa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerPingPrefab: {fileID: 43476100873336245, guid: 808b713264030564099f8ec9778aafb0, type: 3}
+  worldSpaceCanvas: {fileID: 1043871306}
 --- !u!1 &1896405429
 GameObject:
   m_ObjectHideFlags: 0
