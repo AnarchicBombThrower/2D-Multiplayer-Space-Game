@@ -9,7 +9,8 @@ public class PlayersManager : NetworkBehaviour
     private static Vector2[] playerStartingPositions = new Vector2[4] { new Vector2(11,7), new Vector2(12,7), new Vector2(11,6), new Vector2(12,6) };
     private static List<ulong> clientsReady = new List<ulong>();
     private static List<Player> playersInGame = new List<Player>();
-    private Dictionary<Player, List<playerServerSideAction>> playerActions = new Dictionary<Player, List<playerServerSideAction>>();
+    private Dictionary<Player, List<playerServerSideAction>> playerServerActions = new Dictionary<Player, List<playerServerSideAction>>();
+    private Dictionary<Player, List<playerClientSideAction>> playerClientActions = new Dictionary<Player, List<playerClientSideAction>>();
     const int playerLimit = 4;
 
     public override void OnNetworkSpawn()
@@ -37,11 +38,18 @@ public class PlayersManager : NetworkBehaviour
 
         foreach (Player player in playersInGame)
         {
-            List<playerServerSideAction> actions = playerActions[player];
+            List<playerServerSideAction> serverActions = playerServerActions[player];
 
-            foreach (playerServerSideAction action in actions)
+            foreach (playerServerSideAction action in serverActions)
             {
                 //for each player we execute all the actions we have been sent this is so they are executed at a constant rate (the fixed update of the server)
+                action.execute();
+            }
+
+            List<playerClientSideAction> clientActions = playerClientActions[player];
+
+            foreach (playerClientSideAction action in clientActions)
+            {
                 action.execute();
             }
         }
@@ -69,7 +77,8 @@ public class PlayersManager : NetworkBehaviour
             void spawnActorAsPlayer(Actor player){
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientsReady[i]);
                 Player playerComponent = player.GetComponent<Player>();
-                playerActions.Add(playerComponent, new List<playerServerSideAction>());
+                playerServerActions.Add(playerComponent, new List<playerServerSideAction>());
+                playerClientActions.Add(playerComponent, new List<playerClientSideAction>());
                 playersInGame.Add(playerComponent);
             } 
         }
@@ -207,10 +216,51 @@ public class PlayersManager : NetworkBehaviour
         PlayerPingUiManager.instance.createPingLocally(position);
     }
 
-    public interface playerServerSideAction
-    {
-        public enum actionType { ship, gun }
+    public interface playerAction
+    {   
         public abstract void execute();
+    }
+
+    public interface playerClientSideAction : playerAction //this is needed to call actions on the fixed update loop instead of the standard update loop 
+    {
+        public enum clientActionType { standard }
+    }
+
+    public class playerClientSideActionStandard : playerClientSideAction
+    {
+        public enum playerStandardAction { moveLeft, moveUp, moveRight, moveDown }
+        private playerStandardAction ourAction;
+        private Actor playerActingOn;
+
+        public playerClientSideActionStandard(playerStandardAction action, Player player)
+        {
+            ourAction = action;
+            playerActingOn = player.getActor();
+        }
+
+        public void execute()
+        {
+            switch (ourAction)
+            {
+                case playerStandardAction.moveLeft:
+                    playerActingOn.addForceLeft();
+                    return;
+                case playerStandardAction.moveUp:
+                    playerActingOn.addForceUp();
+                    return;
+                case playerStandardAction.moveRight:
+                    playerActingOn.addForceRight();
+                    return;
+                case playerStandardAction.moveDown:
+                    playerActingOn.addForceDown();
+                    return;
+            }
+        }
+    }
+
+    public interface playerServerSideAction : playerAction
+    {
+        public enum serverActionType { ship, gun }
     }
 
     public class playerServerSideActionShip : playerServerSideAction
@@ -290,31 +340,52 @@ public class PlayersManager : NetworkBehaviour
         }
     }
 
-    public void registerAction(playerServerSideAction.actionType actionType, uint[] toRegister)
+    public void registerServerAction(playerServerSideAction.serverActionType actionType, uint[] toRegister)
     {
         registerActionWithServerRpc(actionType, toRegister, NetworkManager.Singleton.LocalClientId);
     }
 
     [ServerRpc(RequireOwnership = false)]
-    public void registerActionWithServerRpc(playerServerSideAction.actionType actionType, uint[] toRegister, ulong playerClientId)
+    public void registerActionWithServerRpc(playerServerSideAction.serverActionType actionType, uint[] toRegister, ulong playerClientId)
     {
         Player playerToRegisterAction = getPlayerFromClientId(playerClientId);
-        playerActions[playerToRegisterAction].Clear();
+        playerServerActions[playerToRegisterAction].Clear();
 
         foreach (uint action in toRegister)
         {
-            playerActions[playerToRegisterAction].Add(createAction(actionType, action, playerToRegisterAction));
+            playerServerActions[playerToRegisterAction].Add(createServerAction(actionType, action, playerToRegisterAction));
         }
     }
 
-    private playerServerSideAction createAction(playerServerSideAction.actionType actionType, uint action, Player playerToRegisterAction)
+    private playerServerSideAction createServerAction(playerServerSideAction.serverActionType actionType, uint action, Player playerToRegisterAction)
     {
         switch (actionType)
         {
-            case playerServerSideAction.actionType.ship:
+            case playerServerSideAction.serverActionType.ship:
                 return new playerServerSideActionShip((playerServerSideActionShip.shipAction)action, playerToRegisterAction);
-            case playerServerSideAction.actionType.gun:
+            case playerServerSideAction.serverActionType.gun:
                 return new playerServerSideActionGun((playerServerSideActionGun.gunAction)action, playerToRegisterAction);
+        }
+
+        return null;
+    }
+
+    public void registerClientAction(playerClientSideAction.clientActionType actionType, uint[] toRegister, Player player)
+    {
+        playerClientActions[player].Clear();
+
+        foreach (uint action in toRegister)
+        {
+            playerClientActions[player].Add(createClientAction(actionType, action, player));
+        }
+    }
+
+    private playerClientSideAction createClientAction(playerClientSideAction.clientActionType actionType, uint action, Player playerToRegisterAction)
+    {
+        switch (actionType)
+        {
+            case playerClientSideAction.clientActionType.standard:
+                return new playerClientSideActionStandard((playerClientSideActionStandard.playerStandardAction)action, playerToRegisterAction);
         }
 
         return null;

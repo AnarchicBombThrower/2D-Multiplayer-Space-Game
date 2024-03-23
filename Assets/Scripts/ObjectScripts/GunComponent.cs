@@ -40,7 +40,7 @@ public class GunComponent : ShipMountableComponent
         Missile newMissile = Instantiate(missilePrefab, transform.position, Quaternion.identity).GetComponent<Missile>();
         newMissile.GetComponent<NetworkObject>().Spawn();
         //shoot at the direction we are pointed times the distance (added onto where we are intially)
-        newMissile.missileGoto((Vector2)transform.position + (Vector2)transform.up * distanceShoot, transform.localEulerAngles.z);
+        newMissile.missileGoto((Vector2)transform.position + (Vector2)transform.up * distanceShoot, transform.eulerAngles.z);
         currentReloadTime = reloadTime;
     }
 

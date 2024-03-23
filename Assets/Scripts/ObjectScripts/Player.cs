@@ -19,11 +19,10 @@ public class Player : Controller
         if (IsOwner == false) { return; }
 
         playerCamera = GameObject.Find("MainCamera").GetComponent<Camera>();
-        Debug.LogError(OwnerClientId);
         PlayersManager.instance.setPlayerControllerToStandard(this);
     }
 
-    private void FixedUpdate() //Movement in FIXED update because we are making use of the unity physics system. TODO: MAKE THIS NORMAL UPDATE AND HANDLE EXECUTING IT IN PLAYER MANAGER OR SOMETHING
+    private void Update() //Movement in FIXED update because we are making use of the unity physics system. TODO: MAKE THIS NORMAL UPDATE AND HANDLE EXECUTING IT IN PLAYER MANAGER OR SOMETHING
     {
         if (IsOwner == false) { return; } //if we do not own this then we cannot control      
 
@@ -47,7 +46,7 @@ public class Player : Controller
             controllingManager.downPressed();
         }
 
-        if(Input.GetKey("f"))
+        if(Input.GetKeyDown("f"))
         {
             controllingManager.interactionPressed();
         }
@@ -95,7 +94,7 @@ public class Player : Controller
     public void setToStandardController()
     {
         if (IsOwner == false) { return; }
-        controllingManager = new standardController(ourActor);
+        controllingManager = new standardController(this);
     }
 
     public void setToSteeringController(SteeringComponent steering)
@@ -129,46 +128,50 @@ public class Player : Controller
 
     class standardController : controllerType
     {
-        Actor controlling;
+        private List<uint> playerActions = new List<uint>();
+        Player controlling;
+        Actor actorControlling;
 
-        public standardController(Actor toControl)
+        public standardController(Player player)
         {
-            controlling = toControl;
+            controlling = player;
+            actorControlling = player.getActor();
         }
 
         void controllerType.leftPressed()
         {
-            controlling.addForceLeft();
+            playerActions.Add((uint)PlayersManager.playerClientSideActionStandard.playerStandardAction.moveLeft);
         }
 
         void controllerType.rightPressed()
         {
-            controlling.addForceRight();
+            playerActions.Add((uint)PlayersManager.playerClientSideActionStandard.playerStandardAction.moveRight);
         }
 
         void controllerType.downPressed()
         {
-            controlling.addForceDown();
+            playerActions.Add((uint)PlayersManager.playerClientSideActionStandard.playerStandardAction.moveDown);
         }
 
         void controllerType.upPressed()
         {
-            controlling.addForceUp();
+            playerActions.Add((uint)PlayersManager.playerClientSideActionStandard.playerStandardAction.moveUp);
         }
 
         void controllerType.interactionPressed()
         {
-            controlling.interact();
+            actorControlling.interact();
         }
 
         void controllerType.repairPressed()
         {
-            controlling.repair();
+            actorControlling.repair();
         }
 
         void controllerType.endOfUpdate()
         {
-
+            PlayersManager.instance.registerClientAction(PlayersManager.playerClientSideAction.clientActionType.standard, playerActions.ToArray(), controlling);
+            playerActions.Clear();
         }
     }
 
@@ -216,7 +219,7 @@ public class Player : Controller
 
         void controllerType.endOfUpdate()
         {
-            PlayersManager.instance.registerAction(PlayersManager.playerServerSideAction.actionType.ship, shipActions.ToArray());
+            PlayersManager.instance.registerServerAction(PlayersManager.playerServerSideAction.serverActionType.ship, shipActions.ToArray());
             shipActions.Clear();
         }
     }
@@ -264,7 +267,7 @@ public class Player : Controller
 
         void controllerType.endOfUpdate()
         {
-            PlayersManager.instance.registerAction(PlayersManager.playerServerSideAction.actionType.gun, shipActions.ToArray());
+            PlayersManager.instance.registerServerAction(PlayersManager.playerServerSideAction.serverActionType.gun, shipActions.ToArray());
             shipActions.Clear();
         }
     }
