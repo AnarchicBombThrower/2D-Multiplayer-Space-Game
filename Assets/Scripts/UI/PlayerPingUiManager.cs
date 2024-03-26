@@ -9,6 +9,7 @@ public class PlayerPingUiManager : MonoBehaviour
     private GameObject playerPingPrefab;
     [SerializeField]
     private Canvas worldSpaceCanvas;
+    const float PING_LIFETIME_SECONDS = 9999999; //it is deleted after this amount of seconds
 
     void Start()
     {
@@ -24,6 +25,8 @@ public class PlayerPingUiManager : MonoBehaviour
     public void createPingLocally(Vector2 pos)
     {
         PingUi newPing = Instantiate(playerPingPrefab, worldSpaceCanvas.transform).GetComponent<PingUi>();
-        newPing.transform.position = pos;
+        newPing.setTimer(PING_LIFETIME_SECONDS);
+        newPing.setPlacePoint(pos);
+        newPing.setCamera(PlayersManager.instance.getPlayerCamera());
     }
 }

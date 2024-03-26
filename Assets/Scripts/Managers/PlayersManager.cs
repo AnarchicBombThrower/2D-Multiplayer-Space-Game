@@ -119,6 +119,11 @@ public class PlayersManager : NetworkBehaviour
         return NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<Player>();
     }
 
+    public Camera getPlayerCamera()
+    {
+        return getLocalClientPlayer().getPlayerCamera();
+    }
+
     public float getDistanceToLocalPlayer(Vector2 pos)
     {
         Vector2 playerPos = getLocalClientPlayer().transform.position;

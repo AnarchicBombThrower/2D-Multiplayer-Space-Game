@@ -56,7 +56,7 @@ public class Player : Controller
             controllingManager.repairPressed();
         }
 
-        if (Input.GetMouseButton(1))
+        if (Input.GetMouseButtonDown(1))
         {
             PlayersManager.instance.placePingAtClientRpc(playerCamera.ScreenToWorldPoint(Input.mousePosition));
         }
@@ -107,6 +107,11 @@ public class Player : Controller
     {
         if (IsOwner == false) { return; }
         controllingManager = new gunController(ourActor);
+    }
+
+    public Camera getPlayerCamera()
+    {
+        return playerCamera;
     }
 
     interface controllerType
