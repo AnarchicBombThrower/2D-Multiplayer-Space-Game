@@ -58,7 +58,7 @@ public class Player : Controller
 
         if (Input.GetMouseButtonDown(1))
         {
-            PlayersManager.instance.placePingAtClientRpc(playerCamera.ScreenToWorldPoint(Input.mousePosition));
+            PlayersManager.instance.placePingAtServerRpc(playerCamera.ScreenToWorldPoint(Input.mousePosition));
         }
 
         playerCamera.transform.position = new Vector3(transform.position.x, transform.position.y, -10);

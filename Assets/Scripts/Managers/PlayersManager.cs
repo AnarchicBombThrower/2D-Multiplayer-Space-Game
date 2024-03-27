@@ -10,7 +10,7 @@ public class PlayersManager : NetworkBehaviour
     private static List<ulong> clientsReady = new List<ulong>();
     private static List<Player> playersInGame = new List<Player>();
     private Dictionary<Player, List<playerServerSideAction>> playerServerActions = new Dictionary<Player, List<playerServerSideAction>>();
-    private Dictionary<Player, List<playerClientSideAction>> playerClientActions = new Dictionary<Player, List<playerClientSideAction>>();
+    private List<playerClientSideAction> playerClientActions = new List<playerClientSideAction>();
     const int playerLimit = 4;
 
     public override void OnNetworkSpawn()
@@ -22,6 +22,7 @@ public class PlayersManager : NetworkBehaviour
         }
 
         instance = this;
+        print("test");
 
         if (IsHost)
         {
@@ -31,6 +32,11 @@ public class PlayersManager : NetworkBehaviour
 
     private void FixedUpdate()
     {
+        foreach (playerClientSideAction action in playerClientActions)
+        {
+            action.execute();
+        }
+
         if (IsHost == false)
         {
             return;
@@ -43,13 +49,6 @@ public class PlayersManager : NetworkBehaviour
             foreach (playerServerSideAction action in serverActions)
             {
                 //for each player we execute all the actions we have been sent this is so they are executed at a constant rate (the fixed update of the server)
-                action.execute();
-            }
-
-            List<playerClientSideAction> clientActions = playerClientActions[player];
-
-            foreach (playerClientSideAction action in clientActions)
-            {
                 action.execute();
             }
         }
@@ -78,7 +77,6 @@ public class PlayersManager : NetworkBehaviour
                 player.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientsReady[i]);
                 Player playerComponent = player.GetComponent<Player>();
                 playerServerActions.Add(playerComponent, new List<playerServerSideAction>());
-                playerClientActions.Add(playerComponent, new List<playerClientSideAction>());
                 playersInGame.Add(playerComponent);
             } 
         }
@@ -138,9 +136,14 @@ public class PlayersManager : NetworkBehaviour
 
     public void setPlayerControllerToStandard(Player player)
     {
-        if (areWeNotSendingBetweenNonhosts(player)) //if we are the host or the local player then we can do it...
+        //TODO: THIS PATTERN IS REPEATED BETWEEN THE THREE FUNCTIONS, FIND A WAY TO SIMPLFY THIS! (interfaces can't work because of client rpcs)
+        if (IsHost) //if we are the host or the local player then we can do it...
         {
             setPlayerControllerToStandardClientRpc(getClientRpcParams(player.OwnerClientId));
+        }
+        else if (player.IsLocalPlayer)
+        {
+            setPlayerControllerToStandard();
         }
         else //if we are a client calling another client throw an error, this should not happen!
         {
@@ -150,9 +153,13 @@ public class PlayersManager : NetworkBehaviour
 
     public void setPlayerControllerToSteering(Player player, SteeringComponent component)
     {
-        if (areWeNotSendingBetweenNonhosts(player))
+        if (IsHost)
         {
             setPlayerControllerToSteeringClientRpc(component, getClientRpcParams(player.OwnerClientId));
+        }
+        else if (player.IsLocalPlayer)
+        {
+            setPlayerControllerToSteering(component);
         }
         else
         {
@@ -162,9 +169,13 @@ public class PlayersManager : NetworkBehaviour
 
     public void setPlayerControllerToGun(Player player, GunComponent component)
     {
-        if (areWeNotSendingBetweenNonhosts(player))
+        if (IsHost)
         {
             setPlayerControllerToGunClientRpc(component, getClientRpcParams(player.OwnerClientId));
+        }
+        else if (player.IsLocalPlayer)
+        {
+            setPlayerControllerToGun(component);
         }
         else
         {
@@ -175,6 +186,11 @@ public class PlayersManager : NetworkBehaviour
     [ClientRpc]
     private void setPlayerControllerToStandardClientRpc(ClientRpcParams clientRpcParams = default)
     {
+        setPlayerControllerToStandard();
+    }
+
+    private void setPlayerControllerToStandard()
+    {
         Player playerToSet = getLocalClientPlayer();
         playerToSet.setToStandardController();
     }
@@ -182,26 +198,29 @@ public class PlayersManager : NetworkBehaviour
     [ClientRpc]
     private void setPlayerControllerToSteeringClientRpc(NetworkBehaviourReference component, ClientRpcParams clientRpcParams = default)
     {
-        Player playerToSet = getLocalClientPlayer();
         SteeringComponent steeringComponent = null;
         if (component.TryGet(out steeringComponent) == false) { Debug.LogError("Component not of correct type for steering controller! " + component.ToString()); }
+        setPlayerControllerToSteering(steeringComponent);
+    }
 
-        playerToSet.setToSteeringController(steeringComponent);
+    private void setPlayerControllerToSteering(SteeringComponent component)
+    {
+        Player playerToSet = getLocalClientPlayer();
+        playerToSet.setToSteeringController(component);
     }
 
     [ClientRpc]
     private void setPlayerControllerToGunClientRpc(NetworkBehaviourReference component, ClientRpcParams clientRpcParams = default)
-    {
-        Player playerToSet = getLocalClientPlayer();
+    {    
         GunComponent gunComponent = null;
         if (component.TryGet(out gunComponent) == false) { Debug.LogError("Component not of correct type for gun controller! " + component.ToString()); }
-
-        playerToSet.setToGunController(gunComponent);
+        setPlayerControllerToGun(gunComponent);
     }
 
-    public bool areWeNotSendingBetweenNonhosts(Player player)
+    private void setPlayerControllerToGun(GunComponent component)
     {
-        return IsHost || player.IsLocalPlayer;
+        Player playerToSet = getLocalClientPlayer();
+        playerToSet.setToGunController(component);
     }
 
     public void showShipToPlayer(Ship ship, Player playerShow)
@@ -212,6 +231,12 @@ public class PlayersManager : NetworkBehaviour
     public void unshowShipToPlayer(Ship ship, Player playerUnShow)
     {
         ship.unseenByPlayerClientRpc(getClientRpcParams(playerUnShow.OwnerClientId));
+    }
+
+    [ServerRpc(RequireOwnership=false)]
+    public void placePingAtServerRpc(Vector2 position)
+    {
+        placePingAtClientRpc(position);
     }
 
     //TODO: later introduce parameters to limit certain pings to certain players
@@ -377,11 +402,11 @@ public class PlayersManager : NetworkBehaviour
 
     public void registerClientAction(playerClientSideAction.clientActionType actionType, uint[] toRegister, Player player)
     {
-        playerClientActions[player].Clear();
+        playerClientActions.Clear();
 
         foreach (uint action in toRegister)
         {
-            playerClientActions[player].Add(createClientAction(actionType, action, player));
+            playerClientActions.Add(createClientAction(actionType, action, player));
         }
     }
 
