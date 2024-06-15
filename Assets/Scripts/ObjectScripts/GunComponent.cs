@@ -10,14 +10,22 @@ public class GunComponent : ShipMountableComponent
     [SerializeField]
     private float rotateSpeed;
     [SerializeField]
+    private float missileMinDistance;
+    [SerializeField]
     private float missileMaxDistance;
     [SerializeField]
     private float missileDistanceGrowth;
     [SerializeField]
     private float reloadTime;
-    private float distanceShoot = 40;
-    private float currentReloadTime;
+    private NetworkVariable<float> distanceShoot = new NetworkVariable<float>();
+    private NetworkVariable<float> currentReloadTime = new NetworkVariable<float>();
     const float Y_OFFSET = 0.55f;
+
+    public override void onSpawnedAsHost()
+    {
+        distanceShoot.Value = missileMinDistance;
+        currentReloadTime.Value = 0;
+    }
 
     private void Update()
     {
@@ -26,27 +34,28 @@ public class GunComponent : ShipMountableComponent
             return;
         }
 
-        currentReloadTime = Mathf.Max(currentReloadTime - Time.deltaTime, 0);
+        currentReloadTime.Value = Mathf.Max(currentReloadTime.Value - Time.deltaTime, 0);
     }
 
     //server side methods
     public void shootMissile()
     {
-        if (currentReloadTime != 0)
+        if (currentReloadTime.Value != 0)
         {
             return;
         }
 
         Missile newMissile = Instantiate(missilePrefab, transform.position, Quaternion.identity).GetComponent<Missile>();
-        newMissile.GetComponent<NetworkObject>().Spawn();
+        newMissile.GetComponent<NetworkObject>().Spawn(true);
         //shoot at the direction we are pointed times the distance (added onto where we are intially)
-        newMissile.missileGoto((Vector2)transform.position + (Vector2)transform.up * distanceShoot, transform.eulerAngles.z);
-        currentReloadTime = reloadTime;
+        newMissile.missileGoto((Vector2)transform.position + (Vector2)transform.up * distanceShoot.Value, transform.eulerAngles.z);
+        currentReloadTime.Value = reloadTime;
+        distanceShoot.Value = missileMinDistance;
     }
 
     public void extendMissileShootDistance()
     {
-        distanceShoot = getMissileDistanceWithIncrease(distanceShoot);
+        distanceShoot.Value = getMissileDistanceWithIncrease(distanceShoot.Value);
     }
 
     public void rotateGunLeft()
@@ -68,8 +77,28 @@ public class GunComponent : ShipMountableComponent
     }
 
     //other methods
-    public float getMissileDistanceWithIncrease(float current)
+    private float getMissileDistanceWithIncrease(float current)
     {
         return Mathf.Min(current + missileDistanceGrowth * Time.deltaTime, missileMaxDistance);
+    }
+
+    public float getMissileShootDistance()
+    {
+        return distanceShoot.Value;
+    }
+
+    public float getMissileSpeed()
+    {
+        return missilePrefab.GetComponent<Missile>().getSpeed();
+    }
+
+    public void subscribeToOnShootDistanceChangedCallback(NetworkVariable<float>.OnValueChangedDelegate callback)
+    {
+        distanceShoot.OnValueChanged += callback;
+    }
+
+    public void unsubscribeToOnShootDistanceChangedCallback(NetworkVariable<float>.OnValueChangedDelegate callback)
+    {
+        distanceShoot.OnValueChanged -= callback;
     }
 }

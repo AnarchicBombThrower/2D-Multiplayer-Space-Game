@@ -7,8 +7,10 @@ using UnityEngine;
 public class ShipManager : NetworkBehaviour
 {
     public static ShipManager instance { get; private set; } //we do not want this to be publically setable on getable
-    [SerializeField]private Vector2 playerShipStartPosition;
-    [SerializeField]private shipTemplate[] shipsPlayersCanChoose;
+    [SerializeField] private Vector2 playerShipStartPosition;
+    [SerializeField] private shipTemplate[] shipsPlayersCanChoose;
+    [SerializeField] private shipTemplate[] enemyShipTemplates;
+    [SerializeField] private GameObject repairHullPrefab;
     private static Ship playersShip;
     private static List<Ship> enemyShips = new List<Ship>();
     public delegate void newEnemyShip(Ship newEnemy);
@@ -16,6 +18,8 @@ public class ShipManager : NetworkBehaviour
     public delegate void removedEnemyShip(Ship removedEnemy);
     private static newEnemyShip removedEnemyShipCallback;
     private enum ShipAllegiance { player, enemy, ally }
+    const float HULL_REPAIR_RANDOM_DISTANCE = 2.5F;
+    const int MAX_HULL_REPAIRS_PER_SPAWN = 3;
 
     public override void OnNetworkSpawn()
     {
@@ -38,15 +42,79 @@ public class ShipManager : NetworkBehaviour
         {
             Ship shipCreated = Instantiate(shipPrefab).GetComponent<Ship>();
             shipCreated.transform.position = positionOfShip;
-            shipCreated.GetComponent<NetworkObject>().Spawn(); //spawn it as a network object
+            bool destroyShipOnSceneChanged = true;
 
             switch (allegiance)
             {
-                case ShipAllegiance.player: playersShip = shipCreated; break; 
+                case ShipAllegiance.player: playersShip = shipCreated; destroyShipOnSceneChanged = false; break;
                 case ShipAllegiance.enemy: enemyShipCreated(shipCreated); break;
             }
 
+            shipCreated.GetComponent<NetworkObject>().Spawn(destroyShipOnSceneChanged);//spawn it as a network object
             return shipCreated;
+        }
+    }
+
+    public void shipJumped(Ship ship)
+    {
+        if (ship == playersShip)
+        {
+            EncounterManager.instance.createNextEncounter();
+        }
+        else
+        {
+            //todo: allow ai ships to jump
+        }
+    }
+
+    public void freshEncounter()
+    {
+        enemyShips.Clear();
+    }
+
+    public void informAllShipOfEncounterChange(bool peaceful)
+    {
+        playersShip.newEncounterBegun(peaceful);
+
+        foreach (Ship ship in enemyShips)
+        {
+            ship.newEncounterBegun(peaceful);
+        }
+    }
+
+    public void resetPlayerShipPosition()
+    {
+        playersShip.transform.position = new Vector2(0, 0);
+    }
+
+    public void shipDestroyed(Ship ship)
+    {
+        if (ship == playersShip)
+        {
+            //gameover
+        }
+        else if (enemyShips.Contains(ship))
+        {
+            enemyShipRemoved(ship, true);
+            spawnNewRepairHullPrefab(ship.transform.position);
+        }
+        else
+        {
+            Debug.LogError("Ship not registered as enemy or player ship!");
+        }
+    }
+
+    public void spawnNewRepairHullPrefab(Vector2 around)
+    {
+        int amountToSpawn = UnityEngine.Random.Range(1, MAX_HULL_REPAIRS_PER_SPAWN + 1);
+
+        for (int i = 0; i < amountToSpawn; i++)
+        {
+            GameObject newRepairHullObject = Instantiate(repairHullPrefab);
+            newRepairHullObject.transform.position = around + 
+            new Vector2(UnityEngine.Random.Range(-HULL_REPAIR_RANDOM_DISTANCE, HULL_REPAIR_RANDOM_DISTANCE),
+            UnityEngine.Random.Range(-HULL_REPAIR_RANDOM_DISTANCE, HULL_REPAIR_RANDOM_DISTANCE));
+            newRepairHullObject.GetComponent<NetworkObject>().Spawn(true);
         }
     }
 
@@ -57,6 +125,21 @@ public class ShipManager : NetworkBehaviour
         if (newEnemyShipCallback != null)
         {
             newEnemyShipCallback(enemy);
+        }
+    }
+
+    private void enemyShipRemoved(Ship enemy, bool destroyed)
+    {
+        enemyShips.Remove(enemy);
+
+        if (enemyShips.Count == 0)
+        {
+            playersShip.setJumpChargeToMax();
+        }
+
+        if (removedEnemyShipCallback != null)
+        {
+            removedEnemyShipCallback(enemy);
         }
     }
 
@@ -93,10 +176,11 @@ public class ShipManager : NetworkBehaviour
     public void spawnPlayerShip()
     {
         shipsPlayersCanChoose[0].createShipInGameWorldServerRpc(ShipAllegiance.player, playerShipStartPosition);
+        PlayersManager.instance.playerShipSpawned(playersShip);
     }
 
-    public void spawnEnemyShip(int shipId, Vector2 atPosition)
+    public Ship spawnEnemyShip(int shipId, Vector2 atPosition)
     {
-        shipsPlayersCanChoose[shipId].createShipInGameWorldServerRpc(ShipAllegiance.enemy, atPosition);
+        return enemyShipTemplates[shipId].createShipInGameWorldServerRpc(ShipAllegiance.enemy, atPosition);
     }
 }

@@ -465,8 +465,8 @@ Rigidbody2D:
     serializedVersion: 2
     m_Bits: 0
   m_Interpolate: 0
-  m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_SleepingMode: 0
+  m_CollisionDetection: 1
   m_Constraints: 0
 --- !u!66 &5274090071154369110
 CompositeCollider2D:
@@ -501,20 +501,10 @@ CompositeCollider2D:
   m_UsedByEffector: 0
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
-  m_GeometryType: 0
+  m_GeometryType: 1
   m_GenerationType: 0
   m_EdgeRadius: 0
   m_ColliderPaths:
-  - m_Collider: {fileID: 456324594704060319}
-    m_ColliderPaths:
-    - - X: 25000000
-        Y: 27500000
-      - X: -25000000
-        Y: 27500000
-      - X: -25000000
-        Y: 22500000
-      - X: 25000000
-        Y: 22500000
   - m_Collider: {fileID: 6003236811613453663}
     m_ColliderPaths:
     - - X: 27500000
@@ -525,6 +515,16 @@ CompositeCollider2D:
         Y: -25000000
       - X: 27500000
         Y: -25000000
+  - m_Collider: {fileID: 456324594704060319}
+    m_ColliderPaths:
+    - - X: 25000000
+        Y: 27500000
+      - X: -25000000
+        Y: 27500000
+      - X: -25000000
+        Y: 22500000
+      - X: 25000000
+        Y: 22500000
   - m_Collider: {fileID: 3442847835732546782}
     m_ColliderPaths:
     - - X: -22500000
@@ -601,6 +601,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   defaultBoardPosition: {x: 0, y: 0}
+  gunComponent: {fileID: 8116118791244495133}
+  steeringComponent: {fileID: 7485339438406900343}
+  scanningComponent: {fileID: 3861642388977340208}
+  hullStrengthMax: 500
 --- !u!114 &-8111606382450580340
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -786,6 +790,7 @@ GameObject:
   - component: {fileID: 1517104539756313294}
   - component: {fileID: 4511252905237637143}
   - component: {fileID: 7485339438406900343}
+  - component: {fileID: 1759807535608602260}
   m_Layer: 0
   m_Name: Steering
   m_TagString: Untagged
@@ -918,6 +923,37 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ourShip: {fileID: 8885044192374057142}
+--- !u!114 &1759807535608602260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5403629730860917558}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  UseUnreliableDeltas: 0
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 0
+  SyncRotAngleY: 0
+  SyncRotAngleZ: 1
+  SyncScaleX: 0
+  SyncScaleY: 0
+  SyncScaleZ: 0
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
+  InLocalSpace: 0
+  Interpolate: 1
+  SlerpPosition: 0
 --- !u!1 &7233360882416938521
 GameObject:
   m_ObjectHideFlags: 0
@@ -930,6 +966,7 @@ GameObject:
   - component: {fileID: 4598798597009952048}
   - component: {fileID: 1934944776127839556}
   - component: {fileID: 8116118791244495133}
+  - component: {fileID: 634440866677695794}
   m_Layer: 0
   m_Name: Gun
   m_TagString: Untagged
@@ -1062,10 +1099,42 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   missilePrefab: {fileID: 1542750494600527979, guid: 128b9d945f9b3914f93499b799ac2dbe, type: 3}
-  rotateSpeed: 50
+  rotateSpeed: 100
+  missileMinDistance: 10
   missileMaxDistance: 40
   missileDistanceGrowth: 5
-  reloadTime: 2
+  reloadTime: 5
+--- !u!114 &634440866677695794
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7233360882416938521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  UseUnreliableDeltas: 0
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 0
+  SyncRotAngleY: 0
+  SyncRotAngleZ: 1
+  SyncScaleX: 0
+  SyncScaleY: 0
+  SyncScaleZ: 0
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
+  InLocalSpace: 0
+  Interpolate: 1
+  SlerpPosition: 0
 --- !u!1 &8472707486456201070
 GameObject:
   m_ObjectHideFlags: 0
@@ -1206,9 +1275,10 @@ GameObject:
   m_Component:
   - component: {fileID: 1822801450597834757}
   - component: {fileID: 8219762492033372496}
+  - component: {fileID: 8024474234282645580}
   m_Layer: 0
   m_Name: Backdrop
-  m_TagString: Untagged
+  m_TagString: ShipTrigger
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1287,3 +1357,48 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!61 &8024474234282645580
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8633229305757464685}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 1, y: 1}
+    newSize: {x: 1, y: 1}
+    adaptiveTilingThreshold: 0.5
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  serializedVersion: 2
+  m_Size: {x: 1, y: 1}
+  m_EdgeRadius: 0

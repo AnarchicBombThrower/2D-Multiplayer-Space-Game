@@ -22,7 +22,7 @@ public class Player : Controller
         PlayersManager.instance.setPlayerControllerToStandard(this);
     }
 
-    private void Update() //Movement in FIXED update because we are making use of the unity physics system. TODO: MAKE THIS NORMAL UPDATE AND HANDLE EXECUTING IT IN PLAYER MANAGER OR SOMETHING
+    private void Update()
     {
         if (IsOwner == false) { return; } //if we do not own this then we cannot control      
 
@@ -56,9 +56,19 @@ public class Player : Controller
             controllingManager.repairPressed();
         }
 
+        if (Input.GetKey("space"))
+        {
+            controllingManager.mainActionPressed();
+        }
+
         if (Input.GetMouseButtonDown(1))
         {
             PlayersManager.instance.placePingAtServerRpc(playerCamera.ScreenToWorldPoint(Input.mousePosition));
+        }
+
+        if (Input.GetKey(KeyCode.Escape))
+        {
+            PlayersManager.instance.disconnectLocalPlayer();
         }
 
         playerCamera.transform.position = new Vector3(transform.position.x, transform.position.y, -10);
@@ -67,7 +77,6 @@ public class Player : Controller
 
     public override void unmounted()
     {
-        //setToStandardControllerClientRpc(getOurClientRpcParams());
         PlayersManager.instance.setPlayerControllerToStandard(this);
     }
 
@@ -79,6 +88,11 @@ public class Player : Controller
     public override void mountedOnGun(GunComponent mountedOn)
     {
         PlayersManager.instance.setPlayerControllerToGun(this, mountedOn);
+    }
+
+    public override void onShip(Ship nowOn)
+    {
+        PlayersManager.instance.playerOnShip(this, nowOn);
     }
 
     public override void sightOfShip(Ship nowSeen)
@@ -94,19 +108,32 @@ public class Player : Controller
     public void setToStandardController()
     {
         if (IsOwner == false) { return; }
+        newControllerSet();
         controllingManager = new standardController(this);
     }
 
     public void setToSteeringController(SteeringComponent steering)
     {
         if (IsOwner == false) { return; }
+        newControllerSet();
         controllingManager = new steeringController(steering);
     }
 
     public void setToGunController(GunComponent gun)
     {
         if (IsOwner == false) { return; }
-        controllingManager = new gunController(ourActor);
+        newControllerSet();
+        controllingManager = new gunController(ourActor, gun);
+    }
+
+    private void newControllerSet()
+    {
+        if (controllingManager == null)
+        {
+            return;
+        }
+
+        controllingManager.controllerDestroyed();
     }
 
     public Camera getPlayerCamera()
@@ -128,7 +155,11 @@ public class Player : Controller
 
         public abstract void repairPressed();
 
+        public virtual void mainActionPressed() { }
+
         public abstract void endOfUpdate();
+
+        public virtual void controllerDestroyed() { }
     }
 
     class standardController : controllerType
@@ -214,13 +245,18 @@ public class Player : Controller
 
         void controllerType.interactionPressed()
         {
-            shipActions.Add((uint)PlayersManager.playerServerSideActionShip.shipAction.interactionPressed);
+            PlayersManager.instance.unmountLocalPlayerFromComponent(ourSteeringComponent);
         }
 
         void controllerType.repairPressed()
         {
             return;
         }     
+
+        void controllerType.mainActionPressed()
+        {
+            ourSteeringComponent.jumpServerRpc();
+        }
 
         void controllerType.endOfUpdate()
         {
@@ -233,11 +269,14 @@ public class Player : Controller
     {
         private List<uint> shipActions;
         private Actor actorControlling;
+        private GunComponent gunControlling;
 
-        public gunController(Actor actorToControl)
+        public gunController(Actor actorToControl, GunComponent gun)
         {
             actorControlling = actorToControl;
+            gunControlling = gun;
             shipActions = new List<uint>();
+            PlayerUiManager.playerOnGun(gun);
         }
 
         void controllerType.leftPressed()
@@ -257,12 +296,12 @@ public class Player : Controller
 
         void controllerType.upPressed()
         {
-            shipActions.Add((uint)PlayersManager.playerServerSideActionGun.gunAction.shoot);
+            shipActions.Add((uint)PlayersManager.playerServerSideActionGun.gunAction.extendDistance);
         }
 
         void controllerType.interactionPressed()
         {
-            //shipActions.Add(PlayersManager.playerServerSideActionShip.shipAction.interactionPressed);
+            PlayersManager.instance.unmountLocalPlayerFromComponent(gunControlling);
         }
 
         void controllerType.repairPressed()
@@ -270,10 +309,20 @@ public class Player : Controller
             return;
         }
 
+        void controllerType.mainActionPressed()
+        {
+            shipActions.Add((uint)PlayersManager.playerServerSideActionGun.gunAction.shoot);
+        }
+
         void controllerType.endOfUpdate()
         {
             PlayersManager.instance.registerServerAction(PlayersManager.playerServerSideAction.serverActionType.gun, shipActions.ToArray());
             shipActions.Clear();
+        }
+
+        void controllerType.controllerDestroyed()
+        {
+            PlayerUiManager.playerNoLongerOnGun(gunControlling);
         }
     }
 }

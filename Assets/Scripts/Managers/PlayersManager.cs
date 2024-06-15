@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayersManager : NetworkBehaviour
 {
@@ -12,8 +14,13 @@ public class PlayersManager : NetworkBehaviour
     private Dictionary<Player, List<playerServerSideAction>> playerServerActions = new Dictionary<Player, List<playerServerSideAction>>();
     private List<playerClientSideAction> playerClientActions = new List<playerClientSideAction>();
     const int playerLimit = 4;
+    //call back for game starting (CALLED ON EACH CLIENT)
+    public delegate void gameStarted();
+    private gameStarted gameStartedCallback;
+    const string TO_LOAD_ON_DISCONNECT = "ManagerScene";
+    const string DONT_DESTROY_TAG = "DontDestroy";
 
-    public override void OnNetworkSpawn()
+    public void Start()
     {
         if (instance != null) //this is a singleton, we do not want a second instance of this
         {
@@ -22,12 +29,17 @@ public class PlayersManager : NetworkBehaviour
         }
 
         instance = this;
-        print("test");
+    }
 
+    public override void OnNetworkSpawn()
+    {
         if (IsHost)
         {
             NetworkManager.OnClientConnectedCallback += playerJoinedServerRpc;
         }
+
+        NetworkManager.OnClientDisconnectCallback += playerDisconnected;
+        NetworkManager.OnClientStopped += localClientStopped;
     }
 
     private void FixedUpdate()
@@ -54,6 +66,21 @@ public class PlayersManager : NetworkBehaviour
         }
     }
 
+    public int getPlayerLimit()
+    {
+        return playerLimit;
+    }
+
+    public void subscribeToGameStartedCallback(gameStarted subscribe)
+    {
+        gameStartedCallback += subscribe;
+    }
+
+    public void unsubscribeToGameStartedCallback(gameStarted unsubscribe)
+    {
+        gameStartedCallback -= unsubscribe;
+    }
+
     [ServerRpc(RequireOwnership = false)]
     public void playerJoinedServerRpc(ulong clientId)
     {
@@ -63,12 +90,36 @@ public class PlayersManager : NetworkBehaviour
             return;
         }
 
+        playerJoinedClientRpc(clientId);
         Debug.Log("New player joined!");
     }
 
-    [ServerRpc]
-    public void startPlayersServerRpc()
+    public void disconnectLocalPlayer()
     {
+        ConnectionManager.instance.disconnectLocalClient();
+    }
+
+    //called locally on all players!!
+    private void playerDisconnected(ulong clientID)
+    {
+        PlayerUiManager.clientDisconnected(clientID == NetworkManager.LocalClientId);
+    }
+
+    private void localClientStopped(bool host)
+    {
+        PlayerUiManager.clientStopped();
+    }
+
+    [ClientRpc]
+    public void playerJoinedClientRpc(ulong clientId)
+    {
+        
+    }
+
+    [ServerRpc]
+    public void startGameServerRpc()
+    {
+        //spawn all players
         for (int i = 0; i < clientsReady.Count; i++)
         {
             Actor newPlayer = ActorsManager.instance.createActor(ActorsManager.actorType.player, playerStartingPositions[i], spawnActorAsPlayer);
@@ -80,6 +131,17 @@ public class PlayersManager : NetworkBehaviour
                 playersInGame.Add(playerComponent);
             } 
         }
+
+        //spawn ship and the first encounter (basically first scene)
+        ShipManager.instance.spawnPlayerShip();
+        EncounterManager.instance.startFirstEncounter();
+        gameStartedClientRpc();
+    }
+
+    [ClientRpc]
+    public void gameStartedClientRpc()
+    {
+        gameStartedCallback();
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -94,7 +156,7 @@ public class PlayersManager : NetworkBehaviour
 
         if (clientsReady.Count == NetworkManager.ConnectedClients.Count) //everyone is ready!
         {
-            startPlayersServerRpc(); //we start game
+            startGameServerRpc(); //we start game
         }
     }
 
@@ -132,6 +194,32 @@ public class PlayersManager : NetworkBehaviour
     public void localClientReadyUp()
     {
         playerReadyServerRpc(NetworkManager.Singleton.LocalClientId);
+    }
+
+    public void playerOnShip(Player player, Ship shipOn)
+    {
+        playerOnLocalClientRpc(shipOn, getClientRpcParams(player.OwnerClientId));
+    }
+
+    [ClientRpc]
+    public void playerOnLocalClientRpc(NetworkBehaviourReference shipReference, ClientRpcParams clientRpcParams = default)
+    {
+        Ship ship = null;
+        if (shipReference.TryGet(out ship) == false) { Debug.LogError("Player on argument is not a ship! " + shipReference.ToString()); return; }
+        PlayerUiManager.playerNowOnShip(ship);
+    }
+
+    public void unmountLocalPlayerFromComponent(ShipMountableComponent component)
+    {
+        unmountPlayerFromComponentServerRpc(NetworkManager.Singleton.LocalClientId, component);
+    }
+
+    [ServerRpc(RequireOwnership=false)]
+    private void unmountPlayerFromComponentServerRpc(ulong playerID, NetworkBehaviourReference componentReference)
+    {
+        ShipMountableComponent componentToDismount = null;
+        if (componentReference.TryGet(out componentToDismount) == false) { Debug.LogError("Player is trying to dismount from component that is not mountable component " + componentReference.ToString()); return; }
+        componentToDismount.unmount(getPlayerFromClientId(playerID).getActor());
     }
 
     public void setPlayerControllerToStandard(Player player)
@@ -225,12 +313,25 @@ public class PlayersManager : NetworkBehaviour
 
     public void showShipToPlayer(Ship ship, Player playerShow)
     {
+        if (ship.GetComponent<NetworkObject>().IsSpawned == false)
+        {
+            return;
+        }
+
         ship.seenByPlayerClientRpc(getClientRpcParams(playerShow.OwnerClientId));
     }
 
     public void unshowShipToPlayer(Ship ship, Player playerUnShow)
     {
         ship.unseenByPlayerClientRpc(getClientRpcParams(playerUnShow.OwnerClientId));
+    }
+
+    public void playerShipSpawned(Ship ship)
+    {
+        foreach (Player player in playersInGame)
+        {
+            player.getActor().getOnShip(ship);
+        }
     }
 
     [ServerRpc(RequireOwnership=false)]
@@ -295,7 +396,7 @@ public class PlayersManager : NetworkBehaviour
 
     public class playerServerSideActionShip : playerServerSideAction
     {
-        public enum shipAction { rotateLeft, rotateRight, thrust, interactionPressed }
+        public enum shipAction { rotateLeft, rotateRight, thrust }
         private shipAction ourAction;
         private SteeringComponent steeringActingOn;
         private Player playerActingOn;
@@ -320,9 +421,6 @@ public class PlayersManager : NetworkBehaviour
                 case shipAction.thrust:
                     steeringActingOn.thrust();
                     return;
-                case shipAction.interactionPressed:
-                    steeringActingOn.dismountFromSteering(playerActingOn.getActor());
-                    return;
             }
         }
 
@@ -335,7 +433,7 @@ public class PlayersManager : NetworkBehaviour
 
     public class playerServerSideActionGun : playerServerSideAction
     {
-        public enum gunAction { rotateLeft, rotateRight, shoot }
+        public enum gunAction { rotateLeft, rotateRight, extendDistance, shoot }
         private gunAction ourAction;
         private GunComponent gunActingOn;
         private Player playerActingOn;
@@ -356,6 +454,9 @@ public class PlayersManager : NetworkBehaviour
                     return;
                 case gunAction.rotateRight:
                     gunActingOn.rotateGunRight();
+                    return;
+                case gunAction.extendDistance:
+                    gunActingOn.extendMissileShootDistance();
                     return;
                 case gunAction.shoot:
                     gunActingOn.shootMissile();

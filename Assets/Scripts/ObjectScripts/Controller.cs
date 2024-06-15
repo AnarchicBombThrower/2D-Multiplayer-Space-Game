@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -19,6 +20,8 @@ public abstract class Controller : NetworkBehaviour
     }
 
     protected abstract void onStart();
+
+    public abstract void onShip(Ship nowOn);
 
     public abstract void unmounted();
 

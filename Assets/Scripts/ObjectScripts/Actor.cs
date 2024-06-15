@@ -4,6 +4,7 @@ using UnityEngine;
 using System.Linq;
 using Unity.Netcode;
 using System;
+using Unity.Mathematics;
 
 public class Actor : NetworkBehaviour
 {
@@ -22,9 +23,19 @@ public class Actor : NetworkBehaviour
     private bool locked = false;
     private float repairTimer = 0;
     private int health;
+    private Vector2 localMovementVelocity;
+    private bool movingLeft;
+    private bool movingRight;
+    private bool movingUp;
+    private bool movingDown;
    //constants 
-    const float force = 100;
-    const int repairAmount = 20;
+    const float SPEED = 5;
+    const int REPAIR_AMOUNT = 20;
+    const float REPAIR_TIMER = 2;
+    const float RANDOM_FORCE = 200;
+    //callbacks
+    public delegate void canInteractWithComponent(ShipInteractableComponent canInteractWith);
+    private canInteractWithComponent canInteractWithComponentCallback;
 
     public override void OnNetworkSpawn()
     {
@@ -36,6 +47,8 @@ public class Actor : NetworkBehaviour
 
     void Update()
     {
+        if (IsOwner == false) { return; }
+
         repairTimer = Mathf.Max(0, repairTimer - Time.deltaTime);
 
         if (!locked)
@@ -44,6 +57,47 @@ public class Actor : NetworkBehaviour
         }
   
         transform.localPosition = localPositionToKeep;
+    }
+
+    private void FixedUpdate()
+    {
+        if (IsOwner == false) { return; }
+
+        localMovementVelocity = new Vector2(0, 0);
+
+        if (movingLeft)
+        {
+            localMovementVelocity += new Vector2(-SPEED, 0);
+        }
+
+        if (movingRight)
+        {
+            localMovementVelocity += new Vector2(SPEED, 0);
+        }
+
+        if (movingUp)
+        {
+            localMovementVelocity += new Vector2(0, SPEED);
+        }
+
+        if (movingDown)
+        {
+            localMovementVelocity += new Vector2(0, -SPEED);
+        }
+
+        movingLeft = movingRight = movingUp = movingDown = false;
+        ourRigidbody.velocity = localMovementVelocity;
+
+        if (shipOn != null) { ourRigidbody.velocity += shipOn.getRigidbodyVelocity(); }
+    }
+    public void subscribeToCanInteractWithCallback(canInteractWithComponent subscribe)
+    {
+        canInteractWithComponentCallback += subscribe;
+    }
+
+    public void unsubscribeToCanInteractWithCallback(canInteractWithComponent subscribe)
+    {
+        canInteractWithComponentCallback -= subscribe;
     }
 
     //only should be called once on an actor (from server)
@@ -72,7 +126,7 @@ public class Actor : NetworkBehaviour
     {
         if (shipOn != null)
         {
-            removeShipFromSight(shipOn);
+            Debug.LogError("Trying to get on ship without getting off current ship!");
         }
 
         shipOn = getOn;
@@ -80,6 +134,20 @@ public class Actor : NetworkBehaviour
         addShipToSight(shipOn);
         transform.position = whereWeBoardTo;
         transform.SetParent(getOn.transform);
+        ourController.onShip(getOn);
+    }
+
+    public void getOffShip()
+    {
+        if (shipOn == null)
+        {
+            Debug.LogError("Trying to get off ship without being on a ship!");
+        }
+
+        shipOn.actorLeftShip(this);
+        removeShipFromSight(shipOn);
+        transform.SetParent(null);
+        shipOn = null;
     }
 
     public void addShipToSight(Ship toAdd) //we are recieving this on server
@@ -97,22 +165,22 @@ public class Actor : NetworkBehaviour
     //actor basic controls
     public void addForceLeft()
     {
-        ourRigidbody.AddForce(new Vector2(-1, 0) * Time.deltaTime * force);
+        movingLeft = true;
     }
 
     public void addForceRight()
     {
-        ourRigidbody.AddForce(new Vector2(1, 0) * Time.deltaTime * force);
+        movingRight = true;
     }
 
     public void addForceUp()
     {
-        ourRigidbody.AddForce(new Vector2(0, 1) * Time.deltaTime * force);
+        movingUp = true;
     }
 
     public void addForceDown()
     {
-        ourRigidbody.AddForce(new Vector2(0, -1) * Time.deltaTime * force);
+        movingDown = true;
     }
 
     public bool interact()
@@ -121,8 +189,19 @@ public class Actor : NetworkBehaviour
         {
             return false;
         }
+      
+        return interactWithSpecific(interactableComponentsWeCanInteractWith[0]);
+    }
 
-        interactableComponentsWeCanInteractWith[0].interactWithUsServerRpc(getActorId());
+    public bool interactWithSpecific(ShipInteractableComponent interactWith)
+    {
+        if (interactableComponentsWeCanInteractWith.Contains(interactWith) == false)
+        {
+            return false;
+        }
+
+        interactWith.interactWithUsServerRpc(getActorId());
+        
         return true;
     }
 
@@ -132,9 +211,30 @@ public class Actor : NetworkBehaviour
         {
             return false;
         }
+  
+        return repairSpecific(interactableComponentsWeCanInteractWith[0]);
+    }
 
-        interactableComponentsWeCanInteractWith[0].repairDamamge(repairAmount);
+    public bool repairSpecific(ShipInteractableComponent repair)
+    {
+        if (interactableComponentsWeCanInteractWith.Contains(repair) == false)
+        {
+            return false;
+        }
+
+        if (repairTimer > 0)
+        {
+            return true;
+        }
+
+        repairTimer = REPAIR_TIMER;
+        repair.repairDamage(REPAIR_AMOUNT);
         return true;
+    }
+
+    public bool canInteractWith(ShipInteractableComponent canInteract)
+    {
+        return interactableComponentsWeCanInteractWith.Contains(canInteract);
     }
 
     public void dealDamage(int damage)
@@ -147,10 +247,26 @@ public class Actor : NetworkBehaviour
         }
     }
 
-    private void die()
+    public void die()
     {
-        throw new NotImplementedException();
-        //decision to be made here what should we do when the player dies? for now nothing happens but something to be designed here
+        ragdollMode();
+        enabled = false;
+        ourController.enabled = false;
+
+        if (locked)
+        {
+            unlockPosition();
+        }
+    }
+
+    public void ragdollMode()
+    {
+        ourRigidbody.constraints = RigidbodyConstraints2D.None; //allow the lifeless corpse to drift...
+        ourRigidbody.mass = 1;
+        ourRigidbody.drag = 1;
+        ourRigidbody.AddForce(
+        new Vector2(UnityEngine.Random.Range(-RANDOM_FORCE, RANDOM_FORCE), 
+        UnityEngine.Random.Range(-RANDOM_FORCE, RANDOM_FORCE)));
     }
 
     public ShipMountableComponent whatAreWeMountedOn()
@@ -174,14 +290,12 @@ public class Actor : NetworkBehaviour
 
     public void mountOntoGun(GunComponent gunMountedOn, Vector2 offset)
     {
-        print("test");
         mountOntoComponent(gunMountedOn, offset);
         ourController.mountedOnGun(gunMountedOn);
     }
 
     private void mountOntoComponent(ShipMountableComponent mountOn, Vector2 offset)
     {
-        print("test");
         mountedOn = mountOn;
         transform.position = mountedOn.transform.position + new Vector3(offset.x, offset.y, 0);
         localPositionToKeep = transform.localPosition;
@@ -191,6 +305,11 @@ public class Actor : NetworkBehaviour
     public void inRangeOfInteractableComponent(ShipInteractableComponent component)
     {
         interactableComponentsWeCanInteractWith.Add(component);
+
+        if (canInteractWithComponentCallback != null)
+        {
+            canInteractWithComponentCallback(component);
+        }
     }
 
     public void noLongerInRangeOfInteractableComponent(ShipInteractableComponent component)
@@ -209,5 +328,10 @@ public class Actor : NetworkBehaviour
     {
         locked = false;
         ourCollider.enabled = true;
-    } 
+    }
+    
+    public Rigidbody2D getRigidbody()
+    {
+        return ourRigidbody;
+    }
 }

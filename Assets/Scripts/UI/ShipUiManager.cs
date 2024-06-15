@@ -2,27 +2,59 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using static Unity.Burst.Intrinsics.Arm;
 
 public class ShipUiManager : MonoBehaviour
 {
     public RectTransform interactableComponentHealthBarParent;
+    [SerializeField]
+    private Image jumpChargeBar;
+    [SerializeField]
+    private Image hullStrengthBar;
     public GameObject interactableComponentHealthBarPrefab;
     private Dictionary<ShipInteractableComponent, Image> shipInteractableComponentsHealthBars = new Dictionary<ShipInteractableComponent, Image>();
     const float HEALTH_BAR_FLOAT_ABOVE_DISTANCE = 0.7f;
+    private float shipMaxJumpCharge;
+    private int shipMaxHullStrength;
 
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
     void Update()
     {
         foreach (ShipInteractableComponent componentSync in shipInteractableComponentsHealthBars.Keys)
         {
             syncUiPositionToComponentPosition(componentSync);
         }
+    }
+
+    public void removeComponentsFromMemory()
+    {
+        foreach (Image image in shipInteractableComponentsHealthBars.Values)
+        {
+            Destroy(image);
+        }
+
+        shipInteractableComponentsHealthBars = new Dictionary<ShipInteractableComponent, Image>();
+    }
+
+    public void localPlayerOnShip(Ship shipOn)
+    {
+        jumpChargeBar.gameObject.SetActive(true);
+        hullStrengthBar.gameObject.SetActive(true);
+        shipOn.subscribeToJumpChargeValueChangeCallback(setJumpChargeBarFillAmountTo);
+        shipMaxJumpCharge = shipOn.getShipMaxCharge();
+        shipOn.subscribeToHullStrengthValueChangeCallback(setHullStrengthBarFillAmountTo);
+        shipMaxHullStrength = shipOn.getShipMaxHullStrength();
+        setJumpChargeBarFillAmountTo(0, shipOn.getJumpCharge());
+        setHullStrengthBarFillAmountTo(0, shipOn.getHullStrength());
+    }
+
+    public void setJumpChargeBarFillAmountTo(float prev, float to)
+    {
+        jumpChargeBar.fillAmount = to / shipMaxJumpCharge;
+    }
+
+    public void setHullStrengthBarFillAmountTo(int prev, int to)
+    {
+        hullStrengthBar.fillAmount = (float)to / (float)shipMaxHullStrength;
     }
 
     public void displayShip(Ship toDisplay)
@@ -62,6 +94,6 @@ public class ShipUiManager : MonoBehaviour
     {
         Image toSync = shipInteractableComponentsHealthBars[component];
         toSync.transform.position = component.transform.position + new Vector3(0, HEALTH_BAR_FLOAT_ABOVE_DISTANCE);
-        //toSync.transform.rotation = component.transform.rotation;
+        toSync.fillAmount = component.getHealthAsFraction();
     }
 }

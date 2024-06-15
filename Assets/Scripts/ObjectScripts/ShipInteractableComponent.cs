@@ -5,23 +5,26 @@ using UnityEngine;
 
 public abstract class ShipInteractableComponent : NetworkBehaviour
 {
-    public delegate void componentHealthSet(ShipInteractableComponent sender, int to);
-    public delegate void componentFunctioningStateSet(ShipInteractableComponent sender, bool to);
-    //we can subscribe to these if we want to recieve updates about what's going on
-    private componentHealthSet healthSet;
-    private componentFunctioningStateSet functioningStateSetCallback;
     //our component's attributes
     private BoxCollider2D ourCollider;
     private SpriteRenderer ourSpriteRenderer;
-    private int health = 100;
-    private bool broken = false;
-    
-    // Start is called before the first frame update
-    void Start()
+    private NetworkVariable<int> health = new NetworkVariable<int>();
+    private NetworkVariable<bool> broken = new NetworkVariable<bool>();
+    const int MAX_HEALTH = 100;
+
+    public override void OnNetworkSpawn()
     {
         ourCollider = GetComponent<BoxCollider2D>();
         ourSpriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (IsHost == false) { return; }
+
+        health.Value = MAX_HEALTH;
+        broken.Value = false;
+        onSpawnedAsHost();
     }
+
+    public virtual void onSpawnedAsHost() { }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -30,6 +33,11 @@ public abstract class ShipInteractableComponent : NetworkBehaviour
 
     private void OnTriggerExit2D(Collider2D collision)
     {
+        if (GetComponentInParent<NetworkObject>() == null || GetComponentInParent<NetworkObject>().IsSpawned == false) //messy but has to be done
+        {
+            return;
+        }
+
         handleCollision(collision, false);
     }
 
@@ -70,67 +78,75 @@ public abstract class ShipInteractableComponent : NetworkBehaviour
 
     public void dealDamange(int toDeal)
     {
-        if (health - toDeal <= 0)
+        if (health.Value - toDeal <= 0)
         {
             setHealth(0);
             breakComponent();
         }
         else
         {
-            setHealth(health - toDeal);
+            setHealth(health.Value - toDeal);
         }      
     }
 
-    public void repairDamamge(int toRepair)
+    public void repairDamage(int toRepair)
     {
-        if (health + toRepair >= 100)
+        if (health.Value + toRepair >= MAX_HEALTH)
         {
-            setHealth(100);
+            setHealth(MAX_HEALTH);
             repairComponent();
         }
         else
         {
-            setHealth(health + toRepair);
+            setHealth(health.Value + toRepair);
         }
     }
 
-    public void subscribeToHealthSetEvent(componentHealthSet toSubscribe)
+    public void subscribeToHealthSetCallback(NetworkVariable<int>.OnValueChangedDelegate callback)
     {
-        healthSet += toSubscribe;
+        health.OnValueChanged += callback;
+    }
+
+    public void unsubscribeToHealthSetCallback(NetworkVariable<int>.OnValueChangedDelegate callback)
+    {
+        health.OnValueChanged -= callback;
+    }
+
+    public void subscribeToBrokenStatusSetCallback(NetworkVariable<bool>.OnValueChangedDelegate callback)
+    {
+        broken.OnValueChanged += callback;
+    }
+
+    public void unsubscribeToBrokenStatusSetCallback(NetworkVariable<bool>.OnValueChangedDelegate callback)
+    {
+        broken.OnValueChanged -= callback;
     }
 
     private void setHealth(int setTo)
     {
-        health = setTo;
+        health.Value = setTo;
+    }
 
-        if (healthSet != null)
-        {
-            healthSet(this, health);
-        }
+    public float getHealthAsFraction()
+    {
+        return (float)health.Value / (float)MAX_HEALTH;
     }
 
     private void breakComponent()
     {
-        broken = true;
-
-        if (functioningStateSetCallback != null)
-        {
-            functioningStateSetCallback(this, broken);
-        }  
+        broken.Value = true;
+        componentBroken();
     }
+
+    public virtual void componentBroken() { }
 
     private void repairComponent()
     {
-        broken = false;
-
-        if (functioningStateSetCallback != null)
-        {
-            functioningStateSetCallback(this, broken);
-        }   
+        broken.Value = false;
     }
 
     protected bool isComponentFunctioning()
     {
-        return broken == false;
+        return broken.Value == false;
     }
 }

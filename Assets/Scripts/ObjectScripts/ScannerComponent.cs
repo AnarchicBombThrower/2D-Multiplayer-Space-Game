@@ -16,10 +16,11 @@ public class ScannerComponent : ShipInteractableComponent
 
         foreach (Ship nowSee in shipsToAddToSight)
         {
-            inRange.addShipToSight(nowSee);
-            ShipManager.subscribeToNewEnemyCallback(inRange.addShipToSight);
-            ShipManager.subscribeToEnemyRemovedCallback(inRange.removeShipFromSight);
+            inRange.addShipToSight(nowSee);      
         }
+
+        ShipManager.subscribeToNewEnemyCallback(inRange.addShipToSight);
+        ShipManager.subscribeToEnemyRemovedCallback(inRange.removeShipFromSight);
     }
 
     [ServerRpc(RequireOwnership=false)]
@@ -32,10 +33,11 @@ public class ScannerComponent : ShipInteractableComponent
 
         foreach (Ship nowUnSee in shipsToRemoveFromSight)
         {
-            outOfRange.removeShipFromSight(nowUnSee);
-            ShipManager.unsubscribeToEnemyRemovedCallback(outOfRange.addShipToSight);
-            ShipManager.unsubscribeToEnemyRemovedCallback(outOfRange.removeShipFromSight);
+            outOfRange.removeShipFromSight(nowUnSee);   
         }
+
+        ShipManager.unsubscribeToEnemyRemovedCallback(outOfRange.addShipToSight);
+        ShipManager.unsubscribeToEnemyRemovedCallback(outOfRange.removeShipFromSight);
     }
 
     [ServerRpc(RequireOwnership = false)]
